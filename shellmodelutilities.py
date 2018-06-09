@@ -1,7 +1,7 @@
 from __future__ import division
 import numpy as np 
 # import matplotlib.pyplot as plt 
-import sys
+# import sys
 
 # Scripts to sort levels and transition strengths from KSHELL 
 # into Ex-Eg matrix energy bins, and to make level density and 
