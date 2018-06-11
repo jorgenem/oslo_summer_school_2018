@@ -12,9 +12,6 @@ Nbins = int(np.ceil(Emax/bin_width))
 Emax_adjusted = bin_width*Nbins # Trick to get an integer number of bins
 bins = np.linspace(0,Emax_adjusted,Nbins+1)
 
-# Set name to be used for saving figures
-save_name = "Ni_all"
-
 # Define list of calculation input files and corresponding label names
 inputfile = ""
 
