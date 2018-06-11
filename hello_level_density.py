@@ -31,6 +31,7 @@ ax_rho.step(bins, np.append(0,rho), where='pre', label="Level density")
 ax_rho.set_yscale('log')
 ax_rho.set_xlabel(r'$E_x \, \mathrm{(MeV)}$')
 ax_rho.set_ylabel(r'$\rho \, \mathrm{(MeV^{-1})}$')
+ax_rho.legend()
 
 # Show plot
 plt.show()
