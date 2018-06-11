@@ -24,7 +24,8 @@ levels = smutil.read_energy_levels(inputfile)
 # Read M1 transitions from the same file
 transitions = smutil.read_transition_strengths(inputfile, type="M1")
 
-# Select the [spin,parity] combinations which we will include
+# Select the [2*spin,parity] combinations which we will include
+# NB! Note the factor 2 for the spin! This is to represent all spins by integers.
 Jpi_list = [[0,+1],[2,+1],[4,+1],[6,+1],[8,+1],[10,+1],[12,+1],[14,+1],[16,+1],[18,+1],[20,+1],[22,+1],[24,+1],[26,+1],[28,+1],
             [0,-1],[2,-1],[4,-1],[6,-1],[8,-1],[10,-1],[12,-1],[14,-1],[16,-1],[18,-1],[20,-1],[22,-1],[24,-1],[26,-1],[28,-1]]
 # NB! If your nucleus has odd A, you need to replace Jpi_list by this one:
