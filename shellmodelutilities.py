@@ -148,13 +148,12 @@ def total_level_density(levels, bin_width, Ex_max):
   return rho_total
 
 
-def strength_function_average_updated_definition(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
+def strength_function_average(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
   # 20171009: Updated the way we average over Ex, J, pi to only count pixels with non-zero gSF.
-  # 20170815: This function returns the strength function the way we now think is the correct way:
-  # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
+  # 20170815: This function returns the strength function by taking the partial level density 
+  # corresponding to the specific (Ex, J, pi) pixel in the
   # calculation of the strength function, and then averaging over all three variables to produce
   # <f(Eg)>.
-  # This code was first developed in the script strength_function_individual_Jpi.py
   Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
   # print "Ex_max =", Ex_max, "Nbins*bin_width =", Nbins*bin_width
   bin_array = np.linspace(0,bin_width*Nbins,Nbins+1) # Array of lower bin edge energy values
@@ -172,11 +171,6 @@ def strength_function_average_updated_definition(levels, transitions, Jpi_list, 
   B_pixel_sum = np.zeros((Nbins,Nbins,len(Jpi_list)))
   B_pixel_count = np.zeros((Nbins,Nbins,len(Jpi_list)))
 
-  # # Update 20170915: Realized a problem with summing vs averaging, adding this list to fix that
-  # # Update 20170920: Realized that the fix was wrong, the original was correct.
-  # Ex_already_seen = []
-  # for i_Ex in range(Nbins):
-  #   Ex_already_seen.append([])
 
   # Loop over all transitions and put in the correct pixel:
   for i_tr in range(len(transitions[:,0])):
@@ -192,27 +186,15 @@ def strength_function_average_updated_definition(levels, transitions, Jpi_list, 
     # Read initial spin and parity of level:
     Ji = int(transitions[i_tr,0])
     pi = int(transitions[i_tr,1])
-    # print pi
-    # Get index for current [Ji,pi] combination in Jpi_list:
-    # print "Tr =", transitions[i_tr,7]
     try:
       i_Jpi = Jpi_list.index([Ji,pi])
     except: 
-      # print "no pass"
       continue
-    # print i_Ex, i_Eg, i_Jpi
 
     # Add B(M1) value and increment count to pixel, respectively
     B_pixel_sum[i_Ex,i_Eg,i_Jpi] += transitions[i_tr,7]
 
-    # 20170920: We thought this was more correct, but now think not.
-    # if not Ex in Ex_already_seen[i_Eg]:
-    #   B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1
-    #   Ex_already_seen[i_Eg].append(Ex)
-
     B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1 # Original
-  # print B_pixel_sum[B_pixel_sum>0].size, B_pixel_sum[B_pixel_sum>0]
-  # print B_pixel_count[B_pixel_count>0].size, B_pixel_count[B_pixel_count>0]
 
 
 
@@ -232,7 +214,6 @@ def strength_function_average_updated_definition(levels, transitions, Jpi_list, 
     rho_ExJpi[i_Ex,i_Jpi] += 1
 
   rho_ExJpi /= bin_width # Normalize to bin width, to get density in MeV^-1
-  # print rho_ExJpi
 
 
   # Calculate gamma strength functions for each Ex, J, pi individually, using the partial level density for each J, pi.
@@ -240,358 +221,10 @@ def strength_function_average_updated_definition(levels, transitions, Jpi_list, 
   a = prefactor[type] # mu_N^-2 MeV^-2, conversion constant
   for i_Jpi in range(len(Jpi_list)):
     for i_Ex in range(Nbins):
-                     # a *           <B(M1; Eg, Ex, J, pi)>                                       * rho(Ex, J, pi)  
-      # if rho_ExJpi[i_Ex, i_Jpi] > 0:
-      #   print "Ding rho, ", "Ex=", bin_array[i_Ex], "Jpi=", Jpi_list[i_Jpi], rho_ExJpi[i_Ex, i_Jpi]
-      # if B_pixel_sum[i_Ex,:, i_Jpi].any() > 0:
-      #   print "Ding B, ", "Ex=", bin_array[i_Ex], "Jpi=", Jpi_list[i_Jpi], rho_ExJpi[i_Ex, i_Jpi], B_pixel_sum[i_Ex,:, i_Jpi].nonzero()
       gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * rho_ExJpi[i_Ex, i_Jpi]
-      # print gSF[i_Ex,gSF[i_Ex,:,i_Jpi]>0,i_Jpi]
-      # # DEBUG:
-      # for i_Eg in range(i_Ex):
-      #   if gSF[i_Ex,i_Eg,i_Jpi] > 0:
-      #     print "Ding, ", i_Ex, i_Eg, i_Jpi, gSF[i_Ex,:,i_Jpi]
-      # TODO if the below smoothing is used: Check the form of the level density. When I tried sigma=3 it looked like the gSF dropped a bit, indicating that the level density was lowered. Maybe smoothe it some other way, such as drawing straight lines?
-      # gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * smoothe(rho_ExJpi[:, i_Jpi], sigma=1)[i_Ex] # Smoothing the initial level density by a gaussian convolution
-
-  # Return the average gSF(Eg) over all (Ex,J,pi)
-
-  # return gSF[i_Exmin:i_Exmax+1,:,:].mean(axis=(0,2))
-  # Update 20171009: Took proper care to only average over the non-zero f(Eg,Ex,J,pi) pixels:
   gSF_currentExrange = gSF[i_Exmin:i_Exmax+1,:,:]
   gSF_ExJpiavg = div0(gSF_currentExrange.sum(axis=(0,2)), (gSF_currentExrange!=0).sum(axis=(0,2)))
   return gSF_ExJpiavg
-
-
-
-
-# def strength_function_average_updated_definition_debug(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
-#   # 20171009: Updated the way we average over Ex, J, pi to only count pixels with non-zero gSF.
-#   # 20170815: This function returns the strength function the way we now think is the correct way:
-#   # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
-#   # calculation of the strength function, and then averaging over all three variables to produce
-#   # <f(Eg)>.
-#   # This code was first developed in the script strength_function_individual_Jpi.py
-#   Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
-#   # print "Ex_max =", Ex_max, "Nbins*bin_width =", Nbins*bin_width
-#   bin_array = np.linspace(0,bin_width*Nbins,Nbins+1) # Array of lower bin edge energy values
-#   bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
-#   # Find index of first and last bin (lower bin edge) where we put counts.
-#   # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-#   i_Exmin = int(np.floor(Ex_min/bin_width)) 
-#   i_Exmax = int(np.floor(Ex_max/bin_width))  
-
-#   prefactor = {"M1":  11.5473e-9, "E1": 1.047e-6}
-
-#   Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
-
-#   # Allocate matrices to store the summed B(M1) values for each pixel, and the number of transitions counted
-#   B_pixel_sum = np.zeros((Nbins,Nbins,len(Jpi_list)))
-#   B_pixel_count = np.zeros((Nbins,Nbins,len(Jpi_list)))
-
-#   # # Update 20170915: Realized a problem with summing vs averaging, adding this list to fix that
-#   # # Update 20170920: Realized that the fix was wrong, the original was correct.
-#   # Ex_already_seen = []
-#   # for i_Ex in range(Nbins):
-#   #   Ex_already_seen.append([])
-
-#   # Loop over all transitions and put in the correct pixel:
-#   for i_tr in range(len(transitions[:,0])):
-#     Ex = transitions[i_tr,2] - Egs
-#     # Check if transition is below Ex_max, skip if not
-#     if Ex < Ex_min or Ex >= Ex_max:
-#       continue
-
-#     # Get bin index for Eg and Ex (initial). Indices are defined with respect to the lower bin edge.
-#     i_Eg = int(np.floor(transitions[i_tr,6]/bin_width))
-#     i_Ex = int(np.floor(Ex/bin_width))
-
-#     # Read initial spin and parity of level:
-#     Ji = int(transitions[i_tr,0])
-#     pi = int(transitions[i_tr,1])
-#     print pi
-#     # Get index for current [Ji,pi] combination in Jpi_list:
-#     print "Tr =", transitions[i_tr,7]
-#     try:
-#       i_Jpi = Jpi_list.index([Ji,pi])
-#     except: 
-#       print "no pass"
-#       continue
-#     print i_Ex, i_Eg, i_Jpi
-
-#     # Add B(M1) value and increment count to pixel, respectively
-#     B_pixel_sum[i_Ex,i_Eg,i_Jpi] += transitions[i_tr,7]
-
-#     # 20170920: We thought this was more correct, but now think not.
-#     # if not Ex in Ex_already_seen[i_Eg]:
-#     #   B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1
-#     #   Ex_already_seen[i_Eg].append(Ex)
-
-#     B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1 # Original
-#   print B_pixel_sum[B_pixel_sum>0].size, B_pixel_sum[B_pixel_sum>0]
-#   print B_pixel_count[B_pixel_count>0].size, B_pixel_count[B_pixel_count>0]
-
-
-
-#   # Allocate (Ex,Jpi) matrix to store level density
-#   rho_ExJpi = np.zeros((Nbins,len(Jpi_list)))
-#   # Count number of levels for each (Ex, J, pi) pixel.
-#   for i_l in range(len(levels[:,0])):
-#     E, J, pi = levels[i_l]
-#     # Skip if level is outside range:
-#     if E-Egs >= Ex_max:
-#       continue
-#     i_Ex = int(np.floor((E-Egs)/bin_width))
-#     try:
-#       i_Jpi = Jpi_list.index([J,pi])
-#     except:
-#       continue
-#     rho_ExJpi[i_Ex,i_Jpi] += 1
-
-#   rho_ExJpi /= bin_width # Normalize to bin width, to get density in MeV^-1
-#   print rho_ExJpi
-
-
-#   # Calculate gamma strength functions for each Ex, J, pi individually, using the partial level density for each J, pi.
-#   gSF = np.zeros((Nbins,Nbins,len(Jpi_list)))
-#   a = prefactor[type] # mu_N^-2 MeV^-2, conversion constant
-#   for i_Jpi in range(len(Jpi_list)):
-#     for i_Ex in range(Nbins):
-#                      # a *           <B(M1; Eg, Ex, J, pi)>                                       * rho(Ex, J, pi)  
-#       if rho_ExJpi[i_Ex, i_Jpi] > 0:
-#         print "Ding rho, ", "Ex=", bin_array[i_Ex], "Jpi=", Jpi_list[i_Jpi], rho_ExJpi[i_Ex, i_Jpi]
-#       if B_pixel_sum[i_Ex,:, i_Jpi].any() > 0:
-#         print "Ding B, ", "Ex=", bin_array[i_Ex], "Jpi=", Jpi_list[i_Jpi], rho_ExJpi[i_Ex, i_Jpi], B_pixel_sum[i_Ex,:, i_Jpi].nonzero()
-#       gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * rho_ExJpi[i_Ex, i_Jpi]
-#       # print gSF[i_Ex,gSF[i_Ex,:,i_Jpi]>0,i_Jpi]
-#       # # DEBUG:
-#       # for i_Eg in range(i_Ex):
-#       #   if gSF[i_Ex,i_Eg,i_Jpi] > 0:
-#       #     print "Ding, ", i_Ex, i_Eg, i_Jpi, gSF[i_Ex,:,i_Jpi]
-#       # TODO if the below smoothing is used: Check the form of the level density. When I tried sigma=3 it looked like the gSF dropped a bit, indicating that the level density was lowered. Maybe smoothe it some other way, such as drawing straight lines?
-#       # gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * smoothe(rho_ExJpi[:, i_Jpi], sigma=1)[i_Ex] # Smoothing the initial level density by a gaussian convolution
-
-#   # Return the average gSF(Eg) over all (Ex,J,pi)
-
-#   # return gSF[i_Exmin:i_Exmax+1,:,:].mean(axis=(0,2))
-#   # Update 20171009: Took proper care to only average over the non-zero f(Eg,Ex,J,pi) pixels:
-#   gSF_currentExrange = gSF[i_Exmin:i_Exmax+1,:,:]
-#   gSF_ExJpiavg = div0(gSF_currentExrange.sum(axis=(0,2)), (gSF_currentExrange!=0).sum(axis=(0,2)))
-#   return gSF_ExJpiavg
-
-
-
-
-
-
-def strength_function_average_updated_definition_brute_avg(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
-  # 20171009: This is a check to see that the averaging we do over Ex, J, pi really only counts
-  # the bins with a non-zero gSF.
-  # 20170815: This function returns the strength function the way we now think is the correct way:
-  # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
-  # calculation of the strength function, and then averaging over all three variables to produce
-  # <f(Eg)>.
-  # This code was first developed in the script strength_function_individual_Jpi.py
-  Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
-  # print "Ex_max =", Ex_max, "Nbins*bin_width =", Nbins*bin_width
-  bin_array = np.linspace(0,bin_width*Nbins,Nbins+1) # Array of lower bin edge energy values
-  bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
-  # Find index of first and last bin (lower bin edge) where we put counts.
-  # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-  i_Exmin = int(np.floor(Ex_min/bin_width)) 
-  i_Exmax = int(np.floor(Ex_max/bin_width))  
-
-  prefactor = {"M1":  11.5473e-9, "E1": 1.047e-6}
-
-  Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
-
-  # Allocate matrices to store the summed B(M1) values for each pixel, and the number of transitions counted
-  B_pixel_sum = np.zeros((Nbins,Nbins,len(Jpi_list)))
-  B_pixel_count = np.zeros((Nbins,Nbins,len(Jpi_list)))
-
-  # # Update 20170915: Realized a problem with summing vs averaging, adding this list to fix that
-  # # Update 20170920: Realized that the fix was wrong, the original was correct.
-  # Ex_already_seen = []
-  # for i_Ex in range(Nbins):
-  #   Ex_already_seen.append([])
-
-  # Loop over all transitions and put in the correct pixel:
-  for i_tr in range(len(transitions[:,0])):
-    Ex = transitions[i_tr,2] - Egs
-    # Check if transition is below Ex_max, skip if not
-    if Ex < Ex_min or Ex >= Ex_max:
-      continue
-
-    # Get bin index for Eg and Ex (initial). Indices are defined with respect to the lower bin edge.
-    i_Eg = int(np.floor(transitions[i_tr,6]/bin_width))
-    i_Ex = int(np.floor(Ex/bin_width))
-
-    # Read initial spin and parity of level:
-    Ji = int(transitions[i_tr,0])
-    pi = int(transitions[i_tr,1])
-    # Get index for current [Ji,pi] combination in Jpi_list:
-    try:
-      i_Jpi = Jpi_list.index([Ji,pi])
-    except: 
-      continue
-
-    # Add B(M1) value and increment count to pixel, respectively
-    B_pixel_sum[i_Ex,i_Eg,i_Jpi] += transitions[i_tr,7]
-
-    # 20170920: We thought this was more correct, but now think not.
-    # if not Ex in Ex_already_seen[i_Eg]:
-    #   B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1
-    #   Ex_already_seen[i_Eg].append(Ex)
-
-    B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1 # Original
-
-
-
-  # Allocate (Ex,Jpi) matrix to store level density
-  rho_ExJpi = np.zeros((Nbins,len(Jpi_list)))
-  # Count number of levels for each (Ex, J, pi) pixel.
-  for i_l in range(len(levels[:,0])):
-    E, J, pi = levels[i_l]
-    # Skip if level is outside range:
-    if E-Egs >= Ex_max:
-      continue
-    i_Ex = int(np.floor((E-Egs)/bin_width))
-    try:
-      i_Jpi = Jpi_list.index([J,pi])
-    except:
-      continue
-    rho_ExJpi[i_Ex,i_Jpi] += 1
-
-  rho_ExJpi /= bin_width # Normalize to bin width, to get density in MeV^-1
-
-
-  # Calculate gamma strength functions for each Ex, J, pi individually, using the partial level density for each J, pi.
-  gSF = np.zeros((Nbins,Nbins,len(Jpi_list)))
-  a = prefactor[type] # mu_N^-2 MeV^-2, conversion constant
-  for i_Jpi in range(len(Jpi_list)):
-    for i_Ex in range(Nbins):
-                     # a *           <B(M1; Eg, Ex, J, pi)>                                       * rho(Ex, J, pi)  
-      gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * rho_ExJpi[i_Ex, i_Jpi]
-      # TODO if the below smoothing is used: Check the form of the level density. When I tried sigma=3 it looked like the gSF dropped a bit, indicating that the level density was lowered. Maybe smoothe it some other way, such as drawing straight lines?
-      # gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * smoothe(rho_ExJpi[:, i_Jpi], sigma=1)[i_Ex] # Smoothing the initial level density by a gaussian convolution
-
-  # Return the average gSF(Eg) over all (Ex,J,pi)
-  # Test of brute force way, to check:
-  gSF_ExJpiavg = np.zeros(Nbins)
-  for i_Eg in range(Nbins):
-    sum = 0
-    counter = 0
-    for i_Ex in range(i_Exmin, i_Exmax+1):
-      for i_Jpi in range(len(Jpi_list)):
-        if gSF[i_Ex, i_Eg, i_Jpi] > 0:
-          sum += gSF[i_Ex, i_Eg, i_Jpi]
-          counter += 1
-    if counter > 0:
-      gSF_ExJpiavg[i_Eg] = sum / counter
-
-
-  return gSF_ExJpiavg
-
-
-
-
-def strength_function_average_updated_definition_naive_avg(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
-  # 20171009: Realized that this was a naive way of averaging over Ex, J and pi.
-  # 20170815: This function returns the strength function the way we now think is the correct way:
-  # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
-  # calculation of the strength function, and then averaging over all three variables to produce
-  # <f(Eg)>.
-  # This code was first developed in the script strength_function_individual_Jpi.py
-  Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
-  # print "Ex_max =", Ex_max, "Nbins*bin_width =", Nbins*bin_width
-  bin_array = np.linspace(0,bin_width*Nbins,Nbins+1) # Array of lower bin edge energy values
-  bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
-  # Find index of first and last bin (lower bin edge) where we put counts.
-  # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-  i_Exmin = int(np.floor(Ex_min/bin_width)) 
-  i_Exmax = int(np.floor(Ex_max/bin_width))  
-
-  prefactor = {"M1":  11.5473e-9, "E1": 1.047e-6}
-
-  Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
-
-  # Allocate matrices to store the summed B(M1) values for each pixel, and the number of transitions counted
-  B_pixel_sum = np.zeros((Nbins,Nbins,len(Jpi_list)))
-  B_pixel_count = np.zeros((Nbins,Nbins,len(Jpi_list)))
-
-  # # Update 20170915: Realized a problem with summing vs averaging, adding this list to fix that
-  # # Update 20170920: Realized that the fix was wrong, the original was correct.
-  # Ex_already_seen = []
-  # for i_Ex in range(Nbins):
-  #   Ex_already_seen.append([])
-
-  # Loop over all transitions and put in the correct pixel:
-  for i_tr in range(len(transitions[:,0])):
-    Ex = transitions[i_tr,2] - Egs
-    # Check if transition is below Ex_max, skip if not
-    if Ex < Ex_min or Ex >= Ex_max:
-      continue
-
-    # Get bin index for Eg and Ex (initial). Indices are defined with respect to the lower bin edge.
-    i_Eg = int(np.floor(transitions[i_tr,6]/bin_width))
-    i_Ex = int(np.floor(Ex/bin_width))
-
-    # Read initial spin and parity of level:
-    Ji = int(transitions[i_tr,0])
-    pi = int(transitions[i_tr,1])
-    # Get index for current [Ji,pi] combination in Jpi_list:
-    try:
-      i_Jpi = Jpi_list.index([Ji,pi])
-    except: 
-      continue
-
-    # Add B(M1) value and increment count to pixel, respectively
-    B_pixel_sum[i_Ex,i_Eg,i_Jpi] += transitions[i_tr,7]
-
-    # 20170920: We thought this was more correct, but now think not.
-    # if not Ex in Ex_already_seen[i_Eg]:
-    #   B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1
-    #   Ex_already_seen[i_Eg].append(Ex)
-
-    B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1 # Original
-
-
-
-  # Allocate (Ex,Jpi) matrix to store level density
-  rho_ExJpi = np.zeros((Nbins,len(Jpi_list)))
-  # Count number of levels for each (Ex, J, pi) pixel.
-  for i_l in range(len(levels[:,0])):
-    E, J, pi = levels[i_l]
-    # Skip if level is outside range:
-    if E-Egs >= Ex_max:
-      continue
-    i_Ex = int(np.floor((E-Egs)/bin_width))
-    try:
-      i_Jpi = Jpi_list.index([J,pi])
-    except:
-      continue
-    rho_ExJpi[i_Ex,i_Jpi] += 1
-
-  rho_ExJpi /= bin_width # Normalize to bin width, to get density in MeV^-1
-
-
-  # Calculate gamma strength functions for each Ex, J, pi individually, using the partial level density for each J, pi.
-  gSF = np.zeros((Nbins,Nbins,len(Jpi_list)))
-  a = prefactor[type] # mu_N^-2 MeV^-2, conversion constant
-  for i_Jpi in range(len(Jpi_list)):
-    for i_Ex in range(Nbins):
-                     # a *           <B(M1; Eg, Ex, J, pi)>                                       * rho(Ex, J, pi)  
-      gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * rho_ExJpi[i_Ex, i_Jpi]
-      # TODO if the below smoothing is used: Check the form of the level density. When I tried sigma=3 it looked like the gSF dropped a bit, indicating that the level density was lowered. Maybe smoothe it some other way, such as drawing straight lines?
-      # gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * smoothe(rho_ExJpi[:, i_Jpi], sigma=1)[i_Ex] # Smoothing the initial level density by a gaussian convolution
-
-  # Return the average gSF(Eg) over all (Ex,J,pi)
-
-  return gSF[i_Exmin:i_Exmax+1,:,:].mean(axis=(0,2))
-
-
-
-
 
 
 def smoothe(array, sigma):
@@ -609,92 +242,6 @@ def smoothe(array, sigma):
   # plt.show()
   array_smoothed = matrix.sum(axis=0)
   return array_smoothed
-
-
-
-
-def strength_function_average_updated_definition_Jpiaveraging(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
-  # 20170815: This function returns the strength function the way we now think is the correct way:
-  # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
-  # calculation of the strength function, and then averaging over all three variables to produce
-  # <f(Eg)>.
-  # 20170821: Another update to this version: To blind ourselves to the same degree as in the 
-  # data, we use an average partial level density for each Ex bin to multiply the <B>.
-  # This code was first developed in the script strength_function_individual_Jpi.py
-  Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
-  # print "Ex_max =", Ex_max, "Nbins*bin_width =", Nbins*bin_width
-  bin_array = np.linspace(0,bin_width*Nbins,Nbins+1) # Array of lower bin edge energy values
-  bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
-  # Find index of first and last bin (lower bin edge) where we put counts.
-  # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-  i_Exmin = int(np.floor(Ex_min/bin_width)) 
-  i_Exmax = int(np.floor(Ex_max/bin_width))  
-
-  Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
-
-  # Allocate matrices to store the summed B(M1) values for each pixel, and the number of transitions counted
-  B_pixel_sum = np.zeros((Nbins,Nbins))
-  B_pixel_count = np.zeros((Nbins,Nbins))
-
-  # Loop over all transitions and put in the correct pixel:
-  for i_tr in range(len(transitions[:,0])):
-    Ex = transitions[i_tr,2] - Egs
-    # Check if transition is below Ex_max, skip if not
-    if Ex < Ex_min or Ex >= Ex_max:
-      continue
-
-    # Get bin index for Eg and Ex (initial). Indices are defined with respect to the lower bin edge.
-    i_Eg = int(np.floor(transitions[i_tr,6]/bin_width))
-    i_Ex = int(np.floor(Ex/bin_width))
-
-    # Read initial spin and parity of level:
-    Ji = int(transitions[i_tr,0])
-    pi = int(transitions[i_tr,1])
-    if not [Ji,pi] in Jpi_list:
-      continue
-
-    # Add B(M1) value and increment count to pixel, respectively
-    B_pixel_sum[i_Ex,i_Eg] += transitions[i_tr,7]
-    B_pixel_count[i_Ex,i_Eg] += 1
-
-
-  # plt.pcolormesh(bin_array_middle, bin_array_middle, B_pixel_sum[:,:,20],norm=LogNorm())
-  # plt.show()
-  # sys.exit(0)
-  # OK -- the B summing seems to work correctly.
-
-
-
-  # Allocate Ex array to store level density
-  rho_ExJpiavg = np.zeros(Nbins)
-  # Count number of levels for each Ex pixel, but only selected (J,pi) values
-  for i_l in range(len(levels[:,0])):
-    E, J, pi = levels[i_l]
-    # Skip if level is outside range:
-    if E-Egs >= Ex_max:
-      continue
-    if not [J,pi] in Jpi_list:
-      continue
-    i_Ex = int(np.floor((E-Egs)/bin_width))
-    rho_ExJpiavg[i_Ex] += 1
-
-  rho_ExJpiavg /= (bin_width*len(Jpi_list)) # Normalize to bin width and number of (J,pi) combinations, to get density in MeV^-1
-
-
-  # Calculate gamma strength functions for each Ex individually, using the average partial level density
-  gSF = np.zeros((Nbins,Nbins))
-  a = 11.5473e-9 # mu_N^-2 MeV^-2, conversion constant
-  for i_Ex in range(Nbins):
-                   # a *           <B(M1; Eg, Ex, J, pi)>                                       * rho(Ex, J, pi)  
-    gSF[i_Ex,:] = a * div0(B_pixel_sum[i_Ex,:], B_pixel_count[i_Ex,:]) * rho_ExJpiavg[i_Ex]
-
-  # Return the average gSF(Eg) over all Ex
-  return gSF[i_Exmin:i_Exmax+1,:].mean(axis=0)
-
-
-
-
-
 
 
 
