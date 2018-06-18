@@ -126,7 +126,8 @@ for i_Ex in range(Nbins):
   for i_Eg in range(Nbins):
     i_Ediff = i_Ex-i_Eg
     if i_Ediff>=0: # no gamma's with higher energy then the excitation energy
-      oslo_matrix[i_Ex,i_Eg] = gSF_Jpiavg[i_Ex,i_Eg] * pow(i_Eg,3.) * np.sum(rho_ExJpi, axis=1)[i_Ediff]
+      Eg = bins_middle[i_Eg]
+      oslo_matrix[i_Ex,i_Eg] = gSF_Jpiavg[i_Ex,i_Eg] * pow(Eg,3.) * np.sum(rho_ExJpi, axis=1)[i_Ediff]
 
 # Plot it
 from matplotlib.colors import LogNorm # To get log scaling on the z axis
