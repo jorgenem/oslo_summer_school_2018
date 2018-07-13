@@ -15,9 +15,6 @@ bins_middle = (bins[0:-1]+bins[1:])/2 # Array of middle-bin values, to use for p
 # Define list of calculation input files and corresponding label names
 inputfile = ""
 
-# Instantiate figure which we will fill
-f_gsf, ax_gsf = plt.subplots(1,1)
-
 # Read energy levels from file
 levels = smutil.read_energy_levels(inputfile)
 
@@ -105,7 +102,8 @@ for i_Jpi in range(len(Jpi_list)):
 gSF_currentExrange = gSF[i_Exmin:i_Exmax+1,:,:]
 gSF_Jpiavg = smutil.div0(gSF_currentExrange.sum(axis=(2)), (gSF_currentExrange!=0).sum(axis=(2)))
 
-
+# Instantiate figure which we will fill
+f_gsf, ax_gsf = plt.subplots(1,1)
 
 # Plot it
 from matplotlib.colors import LogNorm # To get log scaling on the z axis
@@ -113,9 +111,32 @@ colorbar_object = ax_gsf.pcolormesh(bins, bins, gSF_Jpiavg, norm=LogNorm())
 f_gsf.colorbar(colorbar_object) # Add colorbar to plot
 
 # Make the plot nice
-ax_gsf.set_xlabel(r"$E_\gamma \, \mathrm{(MeV)}$")
+plt.gca().set_title('gSF_explot')
+ax_gsf.set_xlabel(r"$gSF -- E_\gamma \, \mathrm{(MeV)}$")
 ax_gsf.set_ylabel(r'$E_x \, \mathrm{(MeV)}$')
 
+# New Figure: Oslo Method like 1st Gen matrix
+f_gsf, ax_gsf = plt.subplots(1,1)
+plt.gca().set_title('oslo_matrix')
+
+# To receive the 1st Gen. matrix P, we use P ~ rho(Ex-Eg) * T(Eg); a
+# assuming dipol radiation this yiels P ~ rho(Ex-Eg) * gSF(Eg) * Eg^3
+oslo_matrix = np.zeros((Nbins,Nbins))
+for i_Ex in range(Nbins):
+  for i_Eg in range(Nbins):
+    i_Ediff = i_Ex-i_Eg
+    if i_Ediff>=0: # no gamma's with higher energy then the excitation energy
+      Eg = bins_middle[i_Eg]
+      oslo_matrix[i_Ex,i_Eg] = gSF_Jpiavg[i_Ex,i_Eg] * pow(Eg,3.) * np.sum(rho_ExJpi, axis=1)[i_Ediff]
+
+# Plot it
+from matplotlib.colors import LogNorm # To get log scaling on the z axis
+colorbar_object = ax_gsf.pcolormesh(bins, bins, oslo_matrix, norm=LogNorm())
+f_gsf.colorbar(colorbar_object) # Add colorbar to plot
+
+# Make the plot nice
+ax_gsf.set_xlabel(r"$E_\gamma \, \mathrm{(MeV)}$")
+ax_gsf.set_ylabel(r'$E_x \, \mathrm{(MeV)}$')
 
 # Show plot
 plt.show()
